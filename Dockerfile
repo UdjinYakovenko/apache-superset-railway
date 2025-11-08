@@ -13,7 +13,9 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install \
+USER superset
+
+RUN pip install --no-cache-dir \
     psycopg2 \
     pymongo \
     pymssql \
@@ -30,7 +32,5 @@ RUN chmod +x ./superset_init.sh
 COPY /config/superset_config.py /app/
 ENV SUPERSET_CONFIG_PATH /app/superset_config.py
 ENV SECRET_KEY $SECRET_KEY
-
-USER superset
 
 ENTRYPOINT [ "./superset_init.sh" ]
