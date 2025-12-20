@@ -14,7 +14,12 @@ ALERT_REPORTS = True
 SECRET_KEY = os.environ.get("SECRET_KEY", "your-secret-key-change-in-production")
 
 # ===== DATABASE CONFIGURATION =====
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://superset:superset@localhost:5432/superset")
+# Railway автоматически inject DATABASE_URL
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    # Fallback для локальной разработки
+    DATABASE_URL = "postgresql://superset:superset@postgres:5432/superset"
+
 SQLALCHEMY_DATABASE_URI = DATABASE_URL
 
 # ===== ALERT & REPORT CONFIGURATION =====
