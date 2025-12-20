@@ -1,0 +1,175 @@
+version: '3.8'
+
+services:
+  # PostgreSQL база данных для Superset
+  postgres:
+    image: postgres:15-alpine
+    container_name: superset-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-superset}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-superset}
+      POSTGRES_DB: ${POSTGRES_DB:-superset}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-superset}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superset-network
+
+  # Redis для Celery (брокер сообщений)
+  redis:
+    image: redis:7-alpine
+    container_name: superset-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - superset-network
+
+  # Superset веб-приложение
+  superset:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: superset-app
+    ports:
+      - "8088:8088"
+    environment:
+      # Администратор
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+
+      # База данных
+      DATABASE_URL: postgresql://${POSTGRES_USER:-superset}:${POSTGRES_PASSWORD:-superset}@postgres:5432/${POSTGRES_DB:-superset}
+      
+      # Celery & Redis
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+
+      # SMTP для алёртов
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_SSL: ${SMTP_SSL:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_MAIL_FROM: ${SMTP_MAIL_FROM:-superset@example.com}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - superset_data:/var/lib/superset
+    networks:
+      - superset-network
+    restart: unless-stopped
+
+  # Celery Worker для обработки алёртов
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: superset-celery-worker
+    command: celery --app=superset.tasks worker -l info -c 4
+    environment:
+      # Администратор
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+
+      # База данных
+      DATABASE_URL: postgresql://${POSTGRES_USER:-superset}:${POSTGRES_PASSWORD:-superset}@postgres:5432/${POSTGRES_DB:-superset}
+      
+      # Celery & Redis
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+
+      # SMTP для алёртов
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_SSL: ${SMTP_SSL:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_MAIL_FROM: ${SMTP_MAIL_FROM:-superset@example.com}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      superset:
+        condition: service_started
+    volumes:
+      - superset_data:/var/lib/superset
+    networks:
+      - superset-network
+    restart: unless-stopped
+
+  # Celery Beat для расписания алёртов
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: superset-celery-beat
+    command: celery --app=superset.tasks beat -l info --scheduler celery_beat_scheduler:SchedulerEntry
+    environment:
+      # Администратор
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+
+      # База данных
+      DATABASE_URL: postgresql://${POSTGRES_USER:-superset}:${POSTGRES_PASSWORD:-superset}@postgres:5432/${POSTGRES_DB:-superset}
+      
+      # Celery & Redis
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+
+      # SMTP для алёртов
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_SSL: ${SMTP_SSL:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_MAIL_FROM: ${SMTP_MAIL_FROM:-superset@example.com}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      superset:
+        condition: service_started
+    volumes:
+      - superset_data:/var/lib/superset
+    networks:
+      - superset-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  superset_data:
+
+networks:
+  superset-network:
+    driver: bridge

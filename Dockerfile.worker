@@ -26,19 +26,16 @@ RUN . /app/.venv/bin/activate && \
         redis \
         email-validator
 
-ENV ADMIN_USERNAME $ADMIN_USERNAME
-ENV ADMIN_EMAIL $ADMIN_EMAIL
-ENV ADMIN_PASSWORD $ADMIN_PASSWORD
-
 COPY /config/superset_config.py /app/pythonpath/superset_config.py
-COPY /config/superset_init.sh /app/superset_init.sh
-RUN chmod +x /app/superset_init.sh
-
 
 ENV PYTHONPATH=/app/pythonpath \
     SUPERSET_CONFIG_PATH=/app/pythonpath/superset_config.py
 ENV SECRET_KEY $SECRET_KEY
+ENV ADMIN_USERNAME $ADMIN_USERNAME
+ENV ADMIN_EMAIL $ADMIN_EMAIL
+ENV ADMIN_PASSWORD $ADMIN_PASSWORD
 
 USER superset
 
-ENTRYPOINT [ "/app/superset_init.sh" ]
+# Celery Worker для обработки алёртов
+CMD ["celery", "--app=superset.tasks", "worker", "-l", "info", "-c", "4"]

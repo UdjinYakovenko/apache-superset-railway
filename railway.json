@@ -1,0 +1,39 @@
+{
+  "services": [
+    {
+      "name": "superset",
+      "dockerfile": "Dockerfile",
+      "port": 8088,
+      "restart_policy": "always",
+      "variables": {
+        "ADMIN_USERNAME": "admin",
+        "ADMIN_EMAIL": "admin@example.com",
+        "ADMIN_PASSWORD": "$ADMIN_PASSWORD",
+        "SECRET_KEY": "$SECRET_KEY",
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    {
+      "name": "superset-worker",
+      "dockerfile": "Dockerfile.worker",
+      "restart_policy": "always",
+      "variables": {
+        "ADMIN_USERNAME": "admin",
+        "ADMIN_EMAIL": "admin@example.com",
+        "ADMIN_PASSWORD": "$ADMIN_PASSWORD",
+        "SECRET_KEY": "$SECRET_KEY",
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  ],
+  "databases": [
+    {
+      "name": "superset-postgres",
+      "type": "postgresql"
+    },
+    {
+      "name": "superset-redis",
+      "type": "redis"
+    }
+  ]
+}
